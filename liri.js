@@ -20,11 +20,15 @@ if (command === 'do-what-it-says') {
         if (err) {
             console.log(err);
         } else {
-            // split the data into new cmd and extraArgs
-            var dataArray = data.split(',');
-            var cmd = dataArray[0];
-            var extraArgs = dataArray[1].replace('\n', '');
-            runCmd(cmd, extraArgs);
+            // first split the data into individal commands (one per line)
+            var commandArray = data.split('\n'); // splits on 'newline'
+            for (let c = 0; c < commandArray.length; c++) {
+                // split the data into new cmd and extraArgs
+                var dataArray = commandArray[c].split(',');
+                var cmd = dataArray[0];
+                var extraArgs = dataArray[1]
+                runCmd(cmd, extraArgs);
+            }
         }
     });
 } else {
@@ -34,8 +38,8 @@ if (command === 'do-what-it-says') {
 function runCmd(cmd, extraArgs) {
     switch (cmd) {
         case 'concert-this':
-            // everything after the cmd is the artist name
-            var artistName = extraArgs;
+            // everything after the cmd is the artist name; use a default if no args provided
+            var artistName = (extraArgs.length === 0) ? 'The Black Dahlia Murder': extraArgs;
             // constructor for events returned from API
             function ArtistEvent(name, loc, date) {
                 this.venueName = name;
@@ -99,47 +103,73 @@ function runCmd(cmd, extraArgs) {
 
             break;
         case 'spotify-this-song':
-            console.log(`accepted command ${cmd}`);
-            // everything after the cmd is the song name
-            var songName = extraArgs;
+            // everything after the cmd is the song name; use default if empty
+            var songName = (extraArgs.length === 0) ? 'The Sign' : extraArgs;
+            // constructor for multiple songs returned from API
+            function SongEntry(name, album, url) {
+                this.artistName = name;
+                this.albumName = album;
+                this.songUrl = url;
+            };
+            // create an array to hold ArtistEvents
+            var songPerformances = []
+            
             // use node-spotify-api 
             var spotify = new Spotify(keys.spotify);
-            spotify.search({ type: 'track', query: songName, limit: 1 }, (err, data) => {
+            spotify.search({ type: 'track', query: songName, limit: 20 }, (err, data) => {
                 if (err) {
                     return console.log('Error occurred: ' + err);
                 } else {
                     //   console.log( JSON.stringify(data.tracks.items, null, 2) ); 
-                    // get only the first song returned
-                    var songInfo = data.tracks.items[0];
-                    var artistName = songInfo.artists[0].name;
-                    var albumName = songInfo.album.name;
-                    var songUrl = songInfo.external_urls.spotify;
+                    // get the song array returned
+                    var songInfo = data.tracks.items;
+                    for (let s = 0; s < data.tracks.items.length; s++) {
+                        var aName = songInfo[s].artists[0].name;
+                        var aAlbum = songInfo[s].album.name;
+                        var aUrl = songInfo[s].external_urls.spotify;
+                        // create event object using constructor
+                        var thisSong = new SongEntry(aName, aAlbum, aUrl);
+                        // add event to array
+                        songPerformances.push(thisSong);                        
+                    }
                     // output the song information
                     // console.log(songName, artistName, albumName, songUrl);
                     // console.log(`Song: ${songName}\nArtist: ${artistName}\nAlbum: ${albumName}\nSpotify URL: ${songUrl}`);
+                    console.log(`Performances of the song '${songName}':`);
+                    // headings
                     console.log(
-                        textPad('Song:', 15, ' '),
-                        textPad(songName, 60, ' ')
+                        textPad('Artist', 25, ' '),
+                        textPad('Album', 50, ' ')
                     );
                     console.log(
-                        textPad('Artist:', 15, ' '),
-                        textPad(artistName, 60, ' ')
+                        textPad('', 25, '='),
+                        textPad('', 50, '=')
                     );
                     console.log(
-                        textPad('Album:', 15, ' '),
-                        textPad(albumName, 60, ' ')
+                        textPad('URL', 76, ' ')
                     );
                     console.log(
-                        textPad('Spotify URL:', 15, ' '),
-                        textPad(songUrl, 60, ' ')
+                        textPad('', 76, '=')
                     );
+                    for (let q = 0; q < songPerformances.length; q++) {
+                        console.log(
+                            textPad(songPerformances[q].artistName, 25, ' '),
+                            textPad(songPerformances[q].albumName, 50, ' ')
+                        );
+                        console.log(
+                            textPad(songPerformances[q].songUrl, 76, ' ')
+                        );    
+                        console.log(
+                            textPad('', 76, '-')
+                        );    
+                    }
                 }
             });
             break;
         case 'movie-this':
             console.log(`accepted command ${cmd}`);
-            // everything after the cmd is the movie title
-            var movieTitle = extraArgs;
+            // everything after the cmd is the movie title; use Mr. Nobody as default if no args provided
+            var movieTitle = (extraArgs.length === 0) ? 'Mr. Nobody' : extraArgs;
             // use axios
             var queryUrl = "http://www.omdbapi.com/?t=" + movieTitle + "&y=&plot=short&apikey=trilogy";
             axios.get(queryUrl)
@@ -186,9 +216,6 @@ function runCmd(cmd, extraArgs) {
                 .catch((error) => {
                     console.log(error);
                 });
-            break;
-        case 'do-what-it-says':
-            console.log(`accepted command ${cmd}`);
             break;
         default:
             console.log(`bad command ${cmd}`);
