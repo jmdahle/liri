@@ -8,13 +8,13 @@ var command = process.argv[2].toLowerCase();
 var args = process.argv.slice(3).join(' ');
 
 // first handle the case of do-what-it-says
-// this option follows the instruction from random.txt
-// or the file provided in the subsequent argument
+// this option follows the instruction from random.txt (default)
+// or the file provided in args (see above, process.argv)
 if (command === 'do-what-it-says') {
-    // open a file system object
-    var fs = require("fs");
     // if no filename provided as an argument, use random.txt
     args = (args.length === 0) ? 'random.txt' : args;
+    // open a file system object
+    var fs = require("fs");
     // open the file name (args)
     fs.readFile(`./${args}`, 'utf8', (err, data) => {
         if (err) {
@@ -38,7 +38,7 @@ if (command === 'do-what-it-says') {
 function runCmd(cmd, extraArgs) {
     switch (cmd) {
         case 'concert-this':
-            // everything after the cmd is the artist name; use a default if no args provided
+            // use a default if no args provided
             var artistName = (extraArgs.length === 0) ? 'The Black Dahlia Murder': extraArgs;
             // constructor for events returned from API
             function ArtistEvent(name, loc, date) {
@@ -48,6 +48,7 @@ function runCmd(cmd, extraArgs) {
             };
             // create an array to hold ArtistEvents
             var concertEvents = []
+            //set up the API call
             var url = `https://rest.bandsintown.com/artists/${artistName}/events?app_id=c`
             // console.log(url);
             axios.get(url)
@@ -74,28 +75,7 @@ function runCmd(cmd, extraArgs) {
                         // add event to array
                         concertEvents.push(thisEvent);
                     }
-                    // output the events
-                    console.log(`Upcoming concerts for ${artistName}:`);
-                    // headings
-                    console.log(
-                        textPad('Date', 10, ' '),
-                        textPad('Venue', 34, ' '),
-                        textPad('Location', 34, ' ')
-                    );
-                    // headering 'underline'
-                    console.log(
-                        textPad('', 10, '='),
-                        textPad('', 34, '='),
-                        textPad('', 34, '=')
-                    );
-                    // data
-                    for (let j = 0; j < concertEvents.length; j++) {
-                        console.log(
-                            textPad(concertEvents[j].eventDate, 10, ' '),
-                            textPad(concertEvents[j].venueName, 34, ' '),
-                            textPad(concertEvents[j].venueLocation, 34, ' ')
-                        );
-                    }
+                    outputConcerts(artistName, concertEvents,true);
                 })
                 .catch((error) => {
                     console.log(error);
@@ -221,6 +201,60 @@ function runCmd(cmd, extraArgs) {
             console.log(`bad command ${cmd}`);
             break;
     }
+}
+
+function outputConcerts(artistName, concertArray, logToText) {
+    var logText = ""; // used to get entire text to send to logfile log.txt
+    var msg = ""; // used to create lines of text to output
+    // output title
+    msg = `Upcoming concerts for ${artistName}:`
+    logText += msg + '\n';
+
+    // create headings
+    msg = textPad('Date', 10, ' ');
+    msg += ' ';
+    msg += textPad('Venue', 34, ' ');
+    msg += ' ';
+    msg += textPad('Location', 34, ' ');
+    msg += '\n'
+    // create heading underline
+    msg += textPad('', 10, '=');
+    msg += ' ';
+    msg += textPad('', 34, '=');
+    msg += ' ';
+    msg += textPad('', 34, '=');
+    // output the headings
+    logText += msg + '\n';
+    
+    // data
+    for (let j = 0; j < concertArray.length; j++) {
+        // create the event text
+        msg = textPad(concertArray[j].eventDate, 10, ' ');
+        msg += ' ';
+        msg += textPad(concertArray[j].venueName, 34, ' ');
+        msg += ' ';
+        msg += textPad(concertArray[j].venueLocation, 34, ' ');
+        msg += ' ';
+        // output the event
+        logText += msg + '\n';
+    }
+    // if logging, output to log.txt
+    // use fs to append to log.txt
+    if (logToText) {
+        // open a file system object
+        var fs = require("fs");
+        // append to log.txt
+        fs.appendFile("log.txt", logText, (err) => {
+            if (err) {
+                console.log(err);
+            }
+        });
+    }
+    console.log(logText);
+}
+
+function outputSongs (title, array, flag) {
+
 }
 
 function textPad(string, len, padchar) {
