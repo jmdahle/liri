@@ -1,81 +1,72 @@
 // global varaibles and required node packages
-require('dotenv').config();
-var moment = require('moment');
-var axios = require('axios');
-var Spotify = require('node-spotify-api');
-var keys = require("./keys.js");
-var command = process.argv[2].toLowerCase();
-var args = process.argv.slice(3).join(' ');
+require('dotenv').config();                     // keeps spotify keys secret
+var moment = require('moment');                 // used for formatting dates
+var axios = require('axios');                   // used for API calls
+var Spotify = require('node-spotify-api');      // Spotify API calls
+var keys = require("./keys.js");                // exports the spotify keys
+var command = process.argv[2].toLowerCase();    // the user-provided command
+var args = process.argv.slice(3).join(' ');     // the [optional] arguments for the command
+var flagToLog = true;                           // flag for logging to log.txt
+var flagToConsole = true;                       // flag for printing to console
 
-// first handle the case of do-what-it-says
-// this option follows the instruction from random.txt (default)
-// or the file provided in args (see above, process.argv)
+/**
+* first handle the case of do-what-it-says which uses from random.txt (default)
+* or the file provided in args (see global vars above)
+* to provide the command(s)
+*/
 if (command === 'do-what-it-says') {
-    // if no filename provided as an argument, use random.txt
-    args = (args.length === 0) ? 'random.txt' : args;
-    // open a file system object
-    var fs = require("fs");
-    // open the file name (args)
-    fs.readFile(`./${args}`, 'utf8', (err, data) => {
+    args = (args.length === 0) ? 'random.txt' : args;  // if no filename provided as an argument, use random.txt
+    var fs = require("fs");  // open a file system object
+    fs.readFile(`./${args}`, 'utf8', (err, data) => {  // open the file name (args)
         if (err) {
             console.log(err);
         } else {
-            // first split the data into individal commands (one per line)
-            var commandArray = data.split('\n'); // splits on 'newline'
+            var commandArray = data.split('\n'); // first split the data into individal commands (one per newline \n)
             for (let c = 0; c < commandArray.length; c++) {
-                // split the data into new cmd and extraArgs
-                var dataArray = commandArray[c].split(',');
-                var cmd = dataArray[0];
-                var extraArgs = dataArray[1]
-                runCmd(cmd, extraArgs);
+                var dataArray = commandArray[c].split(',');  // split the data into new cmd and extraArgs
+                if (dataArray.length === 2) {
+                    var cmd = dataArray[0].trim();
+                    var extraArgs = dataArray[1].trim();
+                    runCmd(cmd, extraArgs);
+                } else {
+                    console.log(`bad command ${dataArray[0]}`);
+                }
             }
         }
     });
 } else {
-    runCmd(command, args);
+    runCmd(command, args);  // the user provided a direct command (not do-what-it-says)
 }
 
 function runCmd(cmd, extraArgs) {
     switch (cmd) {
         case 'concert-this':
-            // use a default if no args provided
-            var artistName = (extraArgs.length === 0) ? 'The Black Dahlia Murder': extraArgs;
-            // constructor for events returned from API
-            function ArtistEvent(name, loc, date) {
+            var artistName = (extraArgs.length === 0) ? 'The Black Dahlia Murder': extraArgs;  // use a default if no args provided
+            function ArtistEvent(name, loc, date) {  // constructor for events returned from API
                 this.venueName = name;
                 this.venueLocation = loc;
                 this.eventDate = date;
             };
-            // create an array to hold ArtistEvents
-            var concertEvents = []
-            //set up the API call
+            var concertEvents = [];  // create an array to hold ArtistEvents
             var url = `https://rest.bandsintown.com/artists/${artistName}/events?app_id=c`
-            // console.log(url);
             axios.get(url)
                 .then((response) => {
-                    // console.log(JSON.stringify(response.data, null, 2) );
-                    // set a variable equal to the events so we can loop through them
-                    var returnedEvents = response.data;
-                    // NEED TO HANDLE CASE WHERE "\n{warn=Not found}\n"
+                    var returnedEvents = response.data;  // set a variable equal to the events so we can loop through them
+// NEED TO HANDLE CASE WHERE "\n{warn=Not found}\n"
                     for (let i = 0; i < returnedEvents.length; i++) {
                         var eName = returnedEvents[i].venue.name;
                         var eLoc = returnedEvents[i].venue.city;
-                        // handle case where region is blank
-                        if (returnedEvents[i].venue.region === '') {
+                        if (returnedEvents[i].venue.region === '') {  // handle case where region is blank
                             eLoc += ', ' + returnedEvents[i].venue.country;
                         } else {
                             eLoc += ', ' + returnedEvents[i].venue.region;
                             eLoc += ' ' + returnedEvents[i].venue.country;
                         }
-                        // use moment to convert date into desired format
-                        var eDate = moment(returnedEvents[i].datetime, moment.ISO_8601).format('MM/DD/YYYY');
-                        // create event object using constructor
-                        var thisEvent = new ArtistEvent(eName, eLoc, eDate);
-                        // console.log(eName, eLoc, eDate);
-                        // add event to array
-                        concertEvents.push(thisEvent);
+                        var eDate = moment(returnedEvents[i].datetime, moment.ISO_8601).format('MM/DD/YYYY');  // use moment to convert date into desired format
+                        var thisEvent = new ArtistEvent(eName, eLoc, eDate);  // create event object using constructor
+                        concertEvents.push(thisEvent);  // add event to array
                     }
-                    outputConcerts(artistName, concertEvents,true);
+                    outputConcerts(artistName, concertEvents);
                 })
                 .catch((error) => {
                     console.log(error);
@@ -83,115 +74,60 @@ function runCmd(cmd, extraArgs) {
 
             break;
         case 'spotify-this-song':
-            // everything after the cmd is the song name; use default if empty
-            var songName = (extraArgs.length === 0) ? 'The Sign' : extraArgs;
-            // constructor for multiple songs returned from API
-            function SongEntry(name, album, url) {
+            var songName = (extraArgs.length === 0) ? 'The Sign' : extraArgs;  // use default if empty
+            function SongEntry(name, album, url) {  // constructor for multiple songs returned from API
                 this.artistName = name;
                 this.albumName = album;
                 this.songUrl = url;
             };
-            // create an array to hold ArtistEvents
-            var songPerformances = []
-            
-            // use node-spotify-api 
-            var spotify = new Spotify(keys.spotify);
+            var songPerformances = [];  // create an array to hold ArtistEvents
+            var spotify = new Spotify(keys.spotify);  // use node-spotify-api 
             spotify.search({ type: 'track', query: songName, limit: 20 }, (err, data) => {
                 if (err) {
                     return console.log('Error occurred: ' + err);
                 } else {
-                    //   console.log( JSON.stringify(data.tracks.items, null, 2) ); 
-                    // get the song array returned
-                    var songInfo = data.tracks.items;
+                    var songInfo = data.tracks.items;  // get the song array returned
                     for (let s = 0; s < data.tracks.items.length; s++) {
                         var aName = songInfo[s].artists[0].name;
                         var aAlbum = songInfo[s].album.name;
                         var aUrl = songInfo[s].external_urls.spotify;
-                        // create event object using constructor
-                        var thisSong = new SongEntry(aName, aAlbum, aUrl);
-                        // add event to array
-                        songPerformances.push(thisSong);                        
+                        var thisSong = new SongEntry(aName, aAlbum, aUrl);  // create event object using constructor
+                        songPerformances.push(thisSong); // add event to array
                     }
-                    // output the song information
-                    // console.log(songName, artistName, albumName, songUrl);
-                    // console.log(`Song: ${songName}\nArtist: ${artistName}\nAlbum: ${albumName}\nSpotify URL: ${songUrl}`);
-                    console.log(`Performances of the song '${songName}':`);
-                    // headings
-                    console.log(
-                        textPad('Artist', 25, ' '),
-                        textPad('Album', 50, ' ')
-                    );
-                    console.log(
-                        textPad('', 25, '='),
-                        textPad('', 50, '=')
-                    );
-                    console.log(
-                        textPad('URL', 76, ' ')
-                    );
-                    console.log(
-                        textPad('', 76, '=')
-                    );
-                    for (let q = 0; q < songPerformances.length; q++) {
-                        console.log(
-                            textPad(songPerformances[q].artistName, 25, ' '),
-                            textPad(songPerformances[q].albumName, 50, ' ')
-                        );
-                        console.log(
-                            textPad(songPerformances[q].songUrl, 76, ' ')
-                        );    
-                        console.log(
-                            textPad('', 76, '-')
-                        );    
-                    }
+                    outputSongs (songName, songPerformances);
                 }
             });
             break;
         case 'movie-this':
-            console.log(`accepted command ${cmd}`);
-            // everything after the cmd is the movie title; use Mr. Nobody as default if no args provided
-            var movieTitle = (extraArgs.length === 0) ? 'Mr. Nobody' : extraArgs;
-            // use axios
-            var queryUrl = "http://www.omdbapi.com/?t=" + movieTitle + "&y=&plot=short&apikey=trilogy";
+            var movieTitle = (extraArgs.length === 0) ? 'Mr. Nobody' : extraArgs; // use Mr. Nobody as default if no args provided
+            function MovieInfo (title, plot, year, imdb, rottenTomoatoes, country, actors) {  // constructor for movie info
+                this.movieName = title;
+                this.moviePlot = plot;
+                this.movieYear = year;
+                this.movieImdbRating = imdb;
+                this.movieRtRating = rottenTomoatoes;
+                this.movieCountry = country;
+                this.movieActors = actors;
+            };
+            var queryUrl = "http://www.omdbapi.com/?t=" + movieTitle + "&y=&plot=short&apikey=trilogy";  // use axios
             axios.get(queryUrl)
                 .then((response) => {
-                    // console.log(JSON.stringify(response.data,null,2));
                     movieData = response.data;
+                    var moviePlot = movieData.Plot;
                     var movieYear = movieData.Year;
                     var imdbRating = movieData.imdbRating;
-                    //get rotten tomatoes score
-                    var rtRating = 'no rating'
+                    var rtRating = 'no rating';  //get rotten tomatoes score
                     for (let i = 0; i < movieData.Ratings.length; i++) {
                         if (movieData.Ratings[i].Source === 'Rotten Tomatoes') {
                             rtRating = movieData.Ratings[i].Value;
                         }
                     }
                     var movieCountry = movieData.Country;
-                    var moviePlot = movieData.Plot;
                     var movieActors = movieData.Actors;
-                    // output movie info
-                    // console.log(`${movieTitle}\nYear: ${movieYear}\nCountry: ${movieCountry}\nRatings: IMDB-${imdbRating}, Rotten Tomatoes-${rtRating}\nActors: ${movieActors}\nPlot: ${moviePlot}`);
-                    console.log(
-                        movieTitle
-                    );
-                    console.log(
-                        moviePlot
-                    );
-                    console.log(
-                        textPad('Actors', 15, ' '),
-                        textPad(movieActors, 60, ' ')
-                    );
-                    console.log(
-                        textPad('Year:', 15, ' '),
-                        textPad(movieYear, 60, ' ')
-                    );
-                    console.log(
-                        textPad('Country:', 15, ' '),
-                        textPad(movieCountry, 60, ' ')
-                    );
-                    console.log(
-                        textPad('Ratings:', 15, ' '),
-                        textPad(`IMDB- ${imdbRating}, Rotten Tomatoes- ${rtRating}`, 60, ' ')
-                    );
+                    var thisMovie = new MovieInfo(
+                        movieTitle, moviePlot, movieYear, imdbRating, rtRating, movieCountry, movieActors
+                        );
+                    outputMovie(movieTitle, thisMovie);                  
                 })
                 .catch((error) => {
                     console.log(error);
@@ -203,58 +139,106 @@ function runCmd(cmd, extraArgs) {
     }
 }
 
-function outputConcerts(artistName, concertArray, logToText) {
+function outputConcerts(artistName, concertArray) {
     var logText = ""; // used to get entire text to send to logfile log.txt
     var msg = ""; // used to create lines of text to output
-    // output title
-    msg = `Upcoming concerts for ${artistName}:`
+    msg = `Upcoming concerts for ${artistName}:`;  // output title
     logText += msg + '\n';
-
-    // create headings
-    msg = textPad('Date', 10, ' ');
+    msg = textPad('Date', 10, ' ');  // create headings
     msg += ' ';
     msg += textPad('Venue', 34, ' ');
     msg += ' ';
     msg += textPad('Location', 34, ' ');
     msg += '\n'
-    // create heading underline
-    msg += textPad('', 10, '=');
+    msg += textPad('', 10, '=');  // create heading underline
     msg += ' ';
     msg += textPad('', 34, '=');
     msg += ' ';
     msg += textPad('', 34, '=');
-    // output the headings
-    logText += msg + '\n';
-    
-    // data
-    for (let j = 0; j < concertArray.length; j++) {
-        // create the event text
-        msg = textPad(concertArray[j].eventDate, 10, ' ');
+    logText += msg + '\n';  // output the headings
+    for (let j = 0; j < concertArray.length; j++) {    // data        
+        msg = textPad(concertArray[j].eventDate, 10, ' ');  // create the event text
         msg += ' ';
         msg += textPad(concertArray[j].venueName, 34, ' ');
         msg += ' ';
         msg += textPad(concertArray[j].venueLocation, 34, ' ');
         msg += ' ';
-        // output the event
         logText += msg + '\n';
     }
-    // if logging, output to log.txt
-    // use fs to append to log.txt
-    if (logToText) {
-        // open a file system object
-        var fs = require("fs");
-        // append to log.txt
-        fs.appendFile("log.txt", logText, (err) => {
+    printIt(logText);  // output the event
+}
+
+function outputSongs (songName, songArray) {
+    var logText = ""; // used to get entire text to send to logfile log.txt
+    var msg = ""; // used to create lines of text to outpuT
+    msg = `Performances of the song '${songName}':`;  // output title
+    logText += msg + '\n';
+    msg = textPad('Artist', 25, ' ');  // create headings
+    msg += ' ';
+    msg += textPad('Album', 50, ' ');
+    msg += '\n';
+    msg += textPad('', 25, '='); // create heading underline
+    msg += ' ';
+    msg += textPad('', 50, '=');
+    msg += '\n';
+    msg += textPad('URL', 76, ' ');  // create second heading line
+    msg += '\n';
+    msg += textPad('', 76, '=');
+    msg += '\n';
+    logText += msg + '\n';  // output the headings
+    for (let q = 0; q < songArray.length; q++) {  // data
+        msg = textPad(songArray[q].artistName, 25, ' ');
+        msg += ' ';
+        msg += textPad(songArray[q].albumName, 50, ' ');
+        msg += '\n';
+        msg += textPad(songArray[q].songUrl, 76, ' ');
+        msg += '\n';
+        msg += textPad('', 76, '-');
+        logText += msg + '\n'
+    }
+    printIt(logText);  // output the song performances
+}
+
+function outputMovie (movieName, movieInfo) {
+    var logText = ""; // used to get entire text to send to logfile log.txt
+    var msg = ""; // used to create lines of text to output
+    msg = `Detailed information for ${movieName}`;  // output title
+    msg += '\n';
+    msg += textPad('', 25, '-');
+    msg += '\n';
+    logText += msg;
+    msg = wrapLongText(movieInfo.moviePlot, 60);  // data
+    logText += msg + '\n';
+    msg = textPad('Actors', 15, ' ');
+    msg += textPad(movieInfo.movieActors, 60, ' ');
+    msg += '\n';
+    msg += textPad('Year:', 15, ' ');
+    msg += textPad(movieInfo.movieYear, 60, ' ');
+    msg += '\n';
+    msg += textPad('Country:', 15, ' ');
+    msg += textPad(movieInfo.movieCountry, 60, ' ');
+    msg += '\n';
+    msg += textPad('Ratings:', 15, ' ');
+    msg += textPad(`IMDB- ${movieInfo.imdbRating}, Rotten Tomatoes- ${movieInfo.rtRating}`, 60, ' ');
+    msg += '\n';
+    logText += msg;
+    printIt(logText);  // output movie
+}
+
+function printIt (text) {
+    var separator = textPad('',5, ' ') + textPad('',70,'_') + '\n'
+    text += separator;  // add an separator to end of text  --- so it's easier to see in log.txt
+    if (flagToLog) {  // if logging, output to log.txt
+        var fs = require("fs");  // use fs to append to log.txt
+        fs.appendFile("log.txt", text, (err) => {
             if (err) {
                 console.log(err);
             }
         });
     }
-    console.log(logText);
-}
-
-function outputSongs (title, array, flag) {
-
+    if (flagToConsole) { // if printing to console
+        console.log(text);
+    }
 }
 
 function textPad(string, len, padchar) {
@@ -262,4 +246,16 @@ function textPad(string, len, padchar) {
     var newString = string + emptyString;
     newString = newString.substring(0, len);
     return newString;
+}
+
+function wrapLongText (longText, wrapAt) {
+    var wrapText = '';
+    var position = 0;
+    while (position < longText.length) {
+        nextPosition = longText.indexOf(' ',position + wrapAt);
+        if (nextPosition < 0) nextPosition = longText.length;
+        wrapText += longText.substring(position, nextPosition) + '\n';
+        position = nextPosition + 1;
+    }
+    return wrapText;
 }
