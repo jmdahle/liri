@@ -1,3 +1,5 @@
 concert-this,Skeletonwitch
 spotify-this-song,I am Katharsis
 movie-this, Star Wars
+concert-this,Sabrina Carpenter
+spotify-this-song,Paris

@@ -1,7 +1,7 @@
 # LIRI
 
 ## About LIRI
-LIRI is a **L**anguage **I**nterpretation and **R**ecognition **I**nterface. LIRI is a command line node.js application that takes in a command and parameters and returns the requested information.  LIRI searches the Spotify API for songs, the Bands in Town API for concerts, and OMDB API for movies.  LIRI returns information to the console (terminal) formatted for an 80 character screen and to a log file as text (log.txt).  LIRI can also process pre-defined commands from a text file.
+LIRI is a **L**anguage **I**nterpretation and **R**ecognition **I**nterface. LIRI is a command line node.js application that accepts a command and command argument and returns the requested information.  LIRI searches the Spotify API for songs, the Bands in Town API for concerts, and OMDB API for movies.  LIRI returns information to the console (terminal) formatted for an 80 character screen and to a log file as text (log.txt).  LIRI can also process pre-defined commands from a text file.
 
 ## Installation
 LIRI relies on node.js and the following packages that can be installed using the node package manager (npm).
@@ -43,15 +43,16 @@ LIRI can also process these basic commands from a text file, using the following
 node liri.js do-what-it-says command_file.txt # processes the commands in command_file.txt
 ```
 
-The command file must list a command and it's arguments separated by a comma separate commands on each line.  See ```random.txt``` as an example.
+The command file must list a command and it's arguments separated by a comma separate commands on each line.  See ```random.txt``` or ```test-cmd.txt``` as examples.
 
 ### Output to log.txt
-LIRI outputs results to the terminal console and logs the results to log.txt by default.  To change the output configuration, you may change the global varaibles ```flagToLog``` or ```flagToConsole```.  They are both set to ```true``` by default.
+LIRI outputs results to the terminal console and logs the results to ```log.txt``` by default.  To change the output configuration, you may change the global varaibles ```flagToLog``` or ```flagToConsole```.  They are both set to ```true``` by default.
 
 ## Technical Notes
 * Output is formatted to be readible on an 80 character wide terminal console.
 * Output is also logged to log.txt.  This file is appended each time a new command is run.
-* Output is formatted using a "padding" function that formats output to a specified length, using a specified characted (e.g., a space ' ' or equal sign '=') to "pad" the text to the proper length.
+* The command argument can be encased in quotes as a single argument (e.g., 'Born to Run') or entered without quotes and accepted as multiple arguments (e.g., Born to Run).
+* Output is formatted using a "padding" function that formats output to a specified length, using a specified character (e.g., a space ' ' or equal sign '=') to "pad" the text to the proper length.
 * Long text output (e.g., movie plot description) is formatted to "wrap" onto multiple lines using a text wraping function.  The function adds a newline at a space following the specified length.
 * All code is original and written for a class project by John Dahle, completed 7/3/2019.
 

@@ -52,19 +52,23 @@ function runCmd(cmd, extraArgs) {
             axios.get(url)
                 .then((response) => {
                     var returnedEvents = response.data;  // set a variable equal to the events so we can loop through them
-// NEED TO HANDLE CASE WHERE "\n{warn=Not found}\n"
-                    for (let i = 0; i < returnedEvents.length; i++) {
-                        var eName = returnedEvents[i].venue.name;
-                        var eLoc = returnedEvents[i].venue.city;
-                        if (returnedEvents[i].venue.region === '') {  // handle case where region is blank
-                            eLoc += ', ' + returnedEvents[i].venue.country;
-                        } else {
-                            eLoc += ', ' + returnedEvents[i].venue.region;
-                            eLoc += ' ' + returnedEvents[i].venue.country;
+                    if (returnedEvents !== '\n{warn=Not found}\n') {  // Handle case where search returns "\n{warn=Not found}\n"                    
+                        for (let i = 0; i < returnedEvents.length; i++) {
+                            var eName = returnedEvents[i].venue.name;
+                            var eLoc = returnedEvents[i].venue.city;
+                            if (returnedEvents[i].venue.region === '') {  // handle case where region is blank
+                                eLoc += ', ' + returnedEvents[i].venue.country;
+                            } else {
+                                eLoc += ', ' + returnedEvents[i].venue.region;
+                                eLoc += ' ' + returnedEvents[i].venue.country;
+                            }
+                            var eDate = moment(returnedEvents[i].datetime, moment.ISO_8601).format('MM/DD/YYYY');  // use moment to convert date into desired format
+                            var thisEvent = new ArtistEvent(eName, eLoc, eDate);  // create event object using constructor
+                            concertEvents.push(thisEvent);  // add event to array
                         }
-                        var eDate = moment(returnedEvents[i].datetime, moment.ISO_8601).format('MM/DD/YYYY');  // use moment to convert date into desired format
-                        var thisEvent = new ArtistEvent(eName, eLoc, eDate);  // create event object using constructor
-                        concertEvents.push(thisEvent);  // add event to array
+                    } else {
+                        var thisEvent = new ArtistEvent('Artist was not found','', ''); // case where "\n{warn=Not found}\n"
+                        concertEvents.push(thisEvent);
                     }
                     outputConcerts(artistName, concertEvents);
                 })
@@ -82,7 +86,7 @@ function runCmd(cmd, extraArgs) {
             };
             var songPerformances = [];  // create an array to hold ArtistEvents
             var spotify = new Spotify(keys.spotify);  // use node-spotify-api 
-            spotify.search({ type: 'track', query: songName, limit: 20 }, (err, data) => {
+            spotify.search({ type: 'track', query: songName, limit: 10 }, (err, data) => {
                 if (err) {
                     return console.log('Error occurred: ' + err);
                 } else {
@@ -113,17 +117,26 @@ function runCmd(cmd, extraArgs) {
             axios.get(queryUrl)
                 .then((response) => {
                     movieData = response.data;
-                    var moviePlot = movieData.Plot;
-                    var movieYear = movieData.Year;
-                    var imdbRating = movieData.imdbRating;
-                    var rtRating = 'no rating';  //get rotten tomatoes score
-                    for (let i = 0; i < movieData.Ratings.length; i++) {
-                        if (movieData.Ratings[i].Source === 'Rotten Tomatoes') {
-                            rtRating = movieData.Ratings[i].Value;
+                    if (JSON.stringify(movieData) !== '{"Response":"False","Error":"Movie not found!"}') {
+                        var moviePlot = movieData.Plot;
+                        var movieYear = movieData.Year;
+                        var imdbRating = movieData.imdbRating;
+                        var rtRating = 'no rating';  //get rotten tomatoes score
+                        for (let i = 0; i < movieData.Ratings.length; i++) {
+                            if (movieData.Ratings[i].Source === 'Rotten Tomatoes') {
+                                rtRating = movieData.Ratings[i].Value;
+                            }
                         }
+                        var movieCountry = movieData.Country;
+                        var movieActors = movieData.Actors;
+                    } else {  // handle case where no movie was found
+                        var moviePlot = 'Movie not found';
+                        var movieYear = '';
+                        var imdbRating = '';
+                        var rtRating = ''; 
+                        var movieCountry = '';
+                        var movieActors = '';
                     }
-                    var movieCountry = movieData.Country;
-                    var movieActors = movieData.Actors;
                     var thisMovie = new MovieInfo(
                         movieTitle, moviePlot, movieYear, imdbRating, rtRating, movieCountry, movieActors
                         );
@@ -181,9 +194,9 @@ function outputSongs (songName, songArray) {
     msg += ' ';
     msg += textPad('', 50, '=');
     msg += '\n';
-    msg += textPad('URL', 76, ' ');  // create second heading line
+    msg += textPad('URL', 79, ' ');  // create second heading line
     msg += '\n';
-    msg += textPad('', 76, '=');
+    msg += textPad('', 79, '-');
     msg += '\n';
     logText += msg + '\n';  // output the headings
     for (let q = 0; q < songArray.length; q++) {  // data
@@ -191,9 +204,9 @@ function outputSongs (songName, songArray) {
         msg += ' ';
         msg += textPad(songArray[q].albumName, 50, ' ');
         msg += '\n';
-        msg += textPad(songArray[q].songUrl, 76, ' ');
+        msg += textPad(songArray[q].songUrl, 79, ' ');
         msg += '\n';
-        msg += textPad('', 76, '-');
+        msg += textPad('', 79, '-');
         logText += msg + '\n'
     }
     printIt(logText);  // output the song performances
@@ -219,7 +232,7 @@ function outputMovie (movieName, movieInfo) {
     msg += textPad(movieInfo.movieCountry, 60, ' ');
     msg += '\n';
     msg += textPad('Ratings:', 15, ' ');
-    msg += textPad(`IMDB- ${movieInfo.imdbRating}, Rotten Tomatoes- ${movieInfo.rtRating}`, 60, ' ');
+    msg += textPad(`IMDB- ${movieInfo.movieImdbRating}, Rotten Tomatoes- ${movieInfo.movieRtRating}`, 60, ' ');
     msg += '\n';
     logText += msg;
     printIt(logText);  // output movie
