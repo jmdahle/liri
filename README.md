@@ -3,6 +3,8 @@
 ## About LIRI
 LIRI is a **L**anguage **I**nterpretation and **R**ecognition **I**nterface. LIRI is a command line node.js application that accepts a command and command argument and returns the requested information.  LIRI searches the Spotify API for songs, the Bands in Town API for concerts, and OMDB API for movies.  LIRI returns information to the console (terminal) formatted for an 80 character screen and to a log file as text (log.txt).  LIRI can also process pre-defined commands from a text file.
 
+See the [demo](https://drive.google.com/file/d/1vQ2Do_Ehb5uhGAL39e_lR7AZehFF6tvi/view)
+
 ## Installation
 LIRI relies on node.js and the following packages that can be installed using the node package manager (npm).
 
